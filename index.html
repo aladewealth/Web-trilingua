@@ -1,0 +1,278 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="description" content="a 70m-parameter english / spanish / french language model trained from scratch on free kaggle gpus. own tokenizer, data pipeline, pretraining, sft and evals." />
+    <meta property="og:title" content="trilingua · a 70m trilingual language model" />
+    <meta property="og:description" content="70m params, trained from scratch on free gpus. best average bits per byte of any open model up to 162m on en/es/fr." />
+    <meta name="twitter:card" content="summary" />
+    <link rel="icon" href="favicon.svg" type="image/svg+xml" />
+    <title>trilingua · a 70m trilingual language model</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      rel="stylesheet"
+      href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600&family=Geist+Mono:wght@400&display=swap"
+    />
+    <link rel="stylesheet" href="hark.css" />
+    <link rel="stylesheet" href="hark-hero.css" />
+    <style>
+      .x-col {
+        --x-purple: #7c3aed;
+        --x-purple-2: #a78bfa;
+        --x-mono: "Geist Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+        max-width: 700px;
+        margin: 0 auto;
+        padding: clamp(40px, 8vw, 88px) var(--gutter) 64px;
+        color: var(--text-primary);
+        font: var(--weight-regular) var(--size-prose)/1.6 var(--sans);
+      }
+      .x-col h1, .x-col h2, .x-col h3, .x-col p, .x-col ul { margin: 0; }
+      .x-col code, .x-mono { font-family: var(--x-mono); font-size: 0.9em; }
+      .x-logo { display: inline-flex; align-items: center; gap: 10px; color: var(--text-primary); text-decoration: none; }
+      .x-logo svg { display: block; }
+      .x-intro { margin-top: 48px; }
+      .x-intro h1 { font: var(--weight-medium) clamp(26px, 4.4vw, 34px)/1.2 var(--sans); letter-spacing: -0.01em; }
+      .x-intro .x-sub { margin-top: 16px; color: var(--text-secondary); font-size: var(--size-lede); line-height: 1.5; }
+      .x-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 14px; margin-top: 28px; }
+      .x-pill {
+        display: inline-flex; align-items: center; min-height: var(--tap); padding: 0 18px;
+        border: 1px solid var(--stroke-primary); border-radius: var(--r-pill);
+        color: var(--text-primary); text-decoration: none; font: var(--type-label);
+        transition: border-color var(--dur-quick) var(--ease-out), background var(--dur-quick) var(--ease-out);
+      }
+      .x-pill:hover { background: var(--hover-wash); }
+      .x-pill--primary { border-color: var(--x-purple); }
+      .x-col a:not(.x-pill):not(.x-logo) {
+        color: inherit; text-decoration: underline; text-decoration-color: var(--stroke-primary);
+        text-underline-offset: 3px; text-decoration-thickness: 1px;
+        transition: color var(--dur-quick) var(--ease-out), text-decoration-color var(--dur-quick) var(--ease-out);
+      }
+      .x-col a:not(.x-pill):not(.x-logo):hover { color: var(--x-purple); text-decoration-color: var(--x-purple); }
+      .x-actions a.x-textlink { font: var(--type-label); display: inline-flex; align-items: center; min-height: var(--tap); }
+      .x-sec { margin-top: 64px; scroll-margin-top: 24px; }
+      .x-sec > h2 { font: var(--weight-medium) var(--size-heading)/1.3 var(--sans); margin-bottom: 16px; }
+      .x-sec h3 { font: var(--weight-medium) var(--size-body)/1.4 var(--sans); margin: 32px 0 10px; }
+      .x-sec p + p, .x-sec p + ul, .x-sec ul + p, .x-sec .x-table + p, .x-sec p + .x-table { margin-top: 16px; }
+      .x-sec ul { padding-left: 1.2em; }
+      .x-sec li + li { margin-top: 6px; }
+      .x-muted { color: var(--text-secondary); }
+      .x-col { width: 100%; min-width: 0; box-sizing: border-box; overflow-wrap: break-word; }
+      .x-logo { min-height: var(--tap); }
+      .x-sec p a { padding: 12px 6px; margin: -12px -6px; }
+      .x-foot a { padding: 14px 6px; margin: -14px -6px; }
+      .x-table { overflow-x: auto; -webkit-overflow-scrolling: touch; margin-top: 16px; max-width: 100%; }
+      .x-table thead th { color: var(--text-primary) !important; background: color-mix(in srgb, var(--fill-tertiary) 45%, var(--fill-primary-on)) !important; white-space: nowrap; }
+      .x-table table { width: 100%; min-width: 480px; border-collapse: collapse; font: var(--type-small); line-height: 1.45; }
+      .x-table th, .x-table td { text-align: left; vertical-align: top; padding: 9px 12px; border-bottom: 1px solid var(--stroke-primary); }
+      .x-table thead th { font-weight: var(--weight-medium); background: var(--hover-wash); border-top: 1px solid var(--stroke-primary); }
+      .x-table tbody th { font-weight: var(--weight-regular); }
+      .x-table td.n, .x-table th.n { text-align: right; font-family: var(--x-mono); font-size: 13px; white-space: nowrap; }
+      .x-table thead th.n { font-family: var(--sans); font-size: var(--size-small); }
+      .x-table caption { caption-side: top; text-align: left; padding-bottom: 8px; font: var(--type-label); }
+      .x-cmp { margin-top: 32px; }
+      .x-cmp h3 { margin-top: 0; }
+      .x-cmp-img { display: block; width: 100%; height: auto; margin-top: 16px; border: 1px solid var(--stroke-secondary); border-radius: var(--r-s); }
+      .x-sec .x-table + ul { margin-top: 16px; }
+      .x-table tr.x-hl th, .x-table tr.x-hl td { font-weight: var(--weight-medium); background: color-mix(in srgb, var(--x-purple) 10%, transparent); }
+      .x-table tr.x-hl th { box-shadow: inset 2px 0 0 var(--x-purple); }
+      .x-devs { list-style: none; padding: 0 !important; }
+      .x-devs li { padding: 14px 0; border-top: 1px solid var(--stroke-secondary); margin: 0 !important; }
+      .x-devs li:last-child { border-bottom: 1px solid var(--stroke-secondary); }
+      .x-devs strong { display: block; font-weight: var(--weight-medium); }
+      .x-devs span { color: var(--text-secondary); }
+      .x-foot { margin-top: 80px; padding-top: 20px; border-top: 1px solid var(--stroke-secondary); color: var(--text-secondary); font: var(--type-caption); }
+    </style>
+  </head>
+  <body>
+    <div class="page" id="top">
+      <main class="x-col">
+        <a class="x-logo" href="#top" aria-label="trilingua">
+          <svg width="40" height="28" viewBox="0 0 40 28" aria-hidden="true">
+            <circle cx="11" cy="14" r="9" fill="none" stroke="#7C3AED" stroke-width="2" />
+            <circle cx="20" cy="14" r="9" fill="none" stroke="#A78BFA" stroke-width="2" />
+            <circle cx="29" cy="14" r="9" fill="none" stroke="#7C3AED" stroke-width="2" />
+          </svg>
+          <svg width="112" height="28" viewBox="0 0 112 28" aria-hidden="true">
+            <text x="0" y="20" fill="currentColor" font-family="Geist, sans-serif" font-size="21" font-weight="500" letter-spacing="-0.3">trilingua</text>
+          </svg>
+        </a>
+
+        <header class="x-intro">
+          <h1>a 70m-parameter trilingual language model, trained from scratch on free gpus</h1>
+          <p class="x-sub">i built a small english / spanish / french gpt end to end, with its own tokenizer, data pipeline, pretraining and fine-tuning, on kaggle t4s, and measured where it wins and where it doesn't.</p>
+          <div class="x-actions">
+            <a class="x-pill x-pill--primary" href="#results">see results</a>
+            <a class="x-pill" href="https://huggingface.co/aladewealth/trilingua" target="_blank" rel="noopener">model on hugging face</a>
+            <a class="x-textlink" href="https://github.com/aladewealth/Trilingual-" target="_blank" rel="noopener">code on github</a>
+          </div>
+        </header>
+
+        <section class="x-sec" id="question">
+          <h2>question</h2>
+          <p>can a 70m model trained from scratch on 1.25b tokens, with a tokenizer built for three languages, beat a much larger english-first model on spanish and french? and what does a tiny instruction-tuning pass cost?</p>
+          <p class="x-muted">what i expected going in:</p>
+          <ul>
+            <li>i expect a shared trilingual tokenizer to beat gpt-2 small on spanish and french bits-per-byte.</li>
+            <li>i expect gpt-2 small to still win on english, since it saw far more english text.</li>
+            <li>i expect fine-tuning on a small instruction set to raise validation loss a little.</li>
+            <li>i expect a 70m model to be fluent but often factually wrong.</li>
+          </ul>
+        </section>
+
+        <section class="x-sec" id="model">
+          <h2>model</h2>
+          <div class="x-table">
+            <table>
+              <thead><tr><th scope="col">field</th><th scope="col">value</th></tr></thead>
+              <tbody>
+                <tr><th scope="row">parameters</th><td><span class="x-mono">70.55m</span> total (<span class="x-mono">49.58m</span> non-embedding)</td></tr>
+                <tr><th scope="row">architecture</th><td>decoder-only transformer, <span class="x-mono">10</span> layers, d_model <span class="x-mono">640</span>, <span class="x-mono">10</span> heads, ffn <span class="x-mono">1728</span> (swiglu), rmsnorm, rope</td></tr>
+                <tr><th scope="row">context</th><td><span class="x-mono">1,024</span> tokens</td></tr>
+                <tr><th scope="row">tokenizer</th><td>my own <span class="x-mono">32,768</span>-token byte-level bpe, shared across en/es/fr, with language tags</td></tr>
+                <tr><th scope="row">flops per token</th><td><span class="x-mono">~502m</span></td></tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <section class="x-sec" id="data">
+          <h2>data</h2>
+          <div class="x-table">
+            <table>
+              <thead><tr><th scope="col">language</th><th scope="col">source</th><th scope="col" class="n">train tokens</th><th scope="col">licence</th></tr></thead>
+              <tbody>
+                <tr><th scope="row">english</th><td>fineweb-edu (huggingfacefw)</td><td class="n">650.0m</td><td>odc-by</td></tr>
+                <tr><th scope="row">spanish</th><td>fineweb2-hq (epfml)</td><td class="n">325.0m</td><td>odc-by</td></tr>
+                <tr><th scope="row">french</th><td>fineweb2-hq (epfml)</td><td class="n">325.0m</td><td>odc-by</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <p>the mix is 50/25/25. about 2m held-out validation tokens per language. fine-tuning used <span class="x-mono">cohereLabs/aya_dataset</span> filtered to eng/spa/fra (apache-2.0) plus self-made 'continue this text' tasks, 1,500 per language.</p>
+        </section>
+
+        <section class="x-sec" id="method">
+          <h2>method</h2>
+          <p>pretraining: 2,385 steps at 524,288 tokens per step (1.25b tokens total), peak learning rate 1e-3 decaying to 1e-4, on 2× tesla t4 with ddp and <span class="x-mono">torch.compile</span>, in fp16 with a gradient scaler.</p>
+          <p>fine-tuning: 2 epochs, lr 1e-4, loss on replies only, 832 steps, about 11 minutes.</p>
+          <p>evaluation: per-language perplexity on validation shards, and bits-per-byte on identical raw held-out documents (200 per language), which is fair across models with different tokenizers. every model gets the same 1,024-token window. a language-id check runs on the generations.</p>
+          <div class="x-table">
+            <table>
+              <thead><tr><th scope="col">metric</th><th scope="col">status</th><th scope="col">note</th></tr></thead>
+              <tbody>
+                <tr><th scope="row">bits per byte</th><td>used</td><td>main comparison metric. tokenizer-independent.</td></tr>
+                <tr><th scope="row">perplexity</th><td>used, own model only</td><td>not comparable across tokenizers.</td></tr>
+                <tr><th scope="row">language-id of generations</th><td>used</td><td>does the model answer in the language it was asked in.</td></tr>
+                <tr><th scope="row">train loss</th><td>not quoted</td><td>validation loss is quoted instead.</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <section class="x-sec" id="results">
+          <h2>results</h2>
+          <p class="x-muted">lower bits-per-byte is better.</p>
+          <div class="x-table">
+            <table>
+              <caption>pretrained base vs gpt-2 small</caption>
+              <thead><tr><th scope="col">metric</th><th scope="col" class="n">english</th><th scope="col" class="n">spanish</th><th scope="col" class="n">french</th></tr></thead>
+              <tbody>
+                <tr><th scope="row">base val perplexity</th><td class="n">30.43</td><td class="n">28.74</td><td class="n">26.07</td></tr>
+                <tr><th scope="row">base bits per byte</th><td class="n">1.105</td><td class="n">1.013</td><td class="n">1.061</td></tr>
+                <tr><th scope="row">gpt-2 small (124m) bits per byte</th><td class="n">0.986</td><td class="n">1.989</td><td class="n">1.914</td></tr>
+                <tr><th scope="row">base language-id accuracy</th><td class="n">0.98</td><td class="n">0.98</td><td class="n">0.98</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <p>on spanish and french the base model roughly halves gpt-2 small's bits-per-byte at about half its size. gpt-2 still wins english.</p>
+
+          <h3>after fine-tuning (sft)</h3>
+          <div class="x-table">
+            <table>
+              <thead><tr><th scope="col">metric</th><th scope="col" class="n">english</th><th scope="col" class="n">spanish</th><th scope="col" class="n">french</th></tr></thead>
+              <tbody>
+                <tr><th scope="row">sft val perplexity</th><td class="n">38.70</td><td class="n">36.50</td><td class="n">32.56</td></tr>
+                <tr><th scope="row">sft bits per byte</th><td class="n">1.180</td><td class="n">1.087</td><td class="n">1.137</td></tr>
+                <tr><th scope="row">sft language-id accuracy</th><td class="n">0.87</td><td class="n">0.20</td><td class="n">0.47</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <p>fine-tuning cost about 0.07–0.08 bits per byte, and the replies drift out of spanish and french. that is the main failure so far.</p>
+
+          <div class="x-cmp" id="comparison">
+            <h3>vs other small open models</h3>
+            <p class="x-muted">bits per byte on the same 200 raw held-out docs per language, 1024-token window for every model. lower is better.</p>
+            <img class="x-cmp-img" src="trilingua_compare.png" alt="trilingua vs small open models, bits per byte" width="1600" height="900" />
+            <div class="x-table">
+              <table>
+                <thead><tr><th scope="col">model</th><th scope="col" class="n">params</th><th scope="col" class="n">en</th><th scope="col" class="n">es</th><th scope="col" class="n">fr</th><th scope="col" class="n">avg</th></tr></thead>
+                <tbody>
+                  <tr><th scope="row">bloom-560m</th><td class="n">559M</td><td class="n">0.933</td><td class="n">0.864</td><td class="n">0.884</td><td class="n">0.894</td></tr>
+                  <tr><th scope="row">qwen2.5-0.5b</th><td class="n">494M</td><td class="n">0.802</td><td class="n">0.942</td><td class="n">0.966</td><td class="n">0.903</td></tr>
+                  <tr class="x-hl"><th scope="row">trilingua (base)</th><td class="n">71M</td><td class="n">1.105</td><td class="n">1.013</td><td class="n">1.061</td><td class="n">1.060</td></tr>
+                  <tr><th scope="row">pythia-160m</th><td class="n">162M</td><td class="n">0.984</td><td class="n">1.280</td><td class="n">1.295</td><td class="n">1.186</td></tr>
+                  <tr><th scope="row">smollm2-135m</th><td class="n">135M</td><td class="n">0.840</td><td class="n">1.380</td><td class="n">1.390</td><td class="n">1.204</td></tr>
+                  <tr><th scope="row">pythia-70m</th><td class="n">70M</td><td class="n">1.110</td><td class="n">1.503</td><td class="n">1.511</td><td class="n">1.375</td></tr>
+                  <tr><th scope="row">gpt-2 small</th><td class="n">124M</td><td class="n">0.986</td><td class="n">1.989</td><td class="n">1.914</td><td class="n">1.630</td></tr>
+                </tbody>
+              </table>
+            </div>
+            <ul>
+              <li>best average of every open model up to 162m params, and best spanish and french of that group.</li>
+              <li>only bloom-560m and qwen2.5-0.5b beat it, at 7–8x the parameters.</li>
+              <li>english is its weakest language: pythia-160m, smollm2-135m and gpt-2 all beat it there.</li>
+              <li>caveat: the test docs are held out from the same fineweb / fineweb2-hq distribution trilingua trained on, so it has an in-domain edge.</li>
+            </ul>
+          </div>
+
+          <h3>training curve</h3>
+          <p>validation loss at the end of pretraining (step <span class="x-mono">2,385</span>): english <span class="x-mono">3.454</span>, spanish <span class="x-mono">3.124</span>, french <span class="x-mono">3.254</span>.</p>
+        </section>
+
+        <section class="x-sec" id="deviations">
+          <h2>deviations</h2>
+          <p class="x-muted">every change to the plan, and what it cost.</p>
+          <ul class="x-devs">
+            <li><strong>bf16 on t4 was a trap</strong><span>the t4 reports bf16 as supported, but it is emulated. run 1 crawled at about 8k tokens/s (3% mfu).</span></li>
+            <li><strong>switching to fp16 made it 7× faster</strong><span>fp16 with a gradient scaler and <span class="x-mono">torch.compile</span> reached about 57k tokens/s (22% mfu). same model, one dtype change.</span></li>
+            <li><strong>run 1 hit kaggle's time limit</strong><span>it stopped at step 615 of 2,385 after the 11-hour session budget. i resumed from its checkpoint in a second session.</span></li>
+            <li><strong>the resume broke the first time</strong><span>a bf16 checkpoint has no gradient-scaler state, so loading it in fp16 needed a fix (commit <span class="x-mono">b8be4c1</span>).</span></li>
+            <li><strong>fine-tuning drifts languages</strong><span>after sft, only 20% of spanish and 47% of french replies stayed in the right language. i am changing the fine-tuning mix before calling it a writing assistant.</span></li>
+          </ul>
+        </section>
+
+        <section class="x-sec" id="limitations">
+          <h2>limitations</h2>
+          <ul>
+            <li>one seed per run.</li>
+            <li>bits-per-byte uses 200 documents per language, so small gaps are noise.</li>
+            <li>gpt-2 saw far more english than this model, so the english comparison is not a like-for-like data budget.</li>
+            <li>70m parameters is fluent but not factual. samples often state wrong facts.</li>
+            <li>no human evaluation yet.</li>
+            <li>spanish and french come from the same web corpus family, so results may not hold on other domains.</li>
+          </ul>
+        </section>
+
+        <section class="x-sec" id="sources">
+          <h2>sources</h2>
+          <ul>
+            <li>fineweb-edu, hugging face</li>
+            <li>fineweb2-hq, epfml</li>
+            <li>aya dataset, cohere labs</li>
+            <li>gpt-2 small, openai</li>
+            <li>pytorch</li>
+            <li>kaggle for compute (2× t4)</li>
+            <li>ai assistants for code and analysis</li>
+          </ul>
+          <p>code, notebooks and logs are in the <a href="https://github.com/aladewealth/Trilingual-" target="_blank" rel="noopener">repo</a>.</p>
+        </section>
+
+        <footer class="x-foot">
+          <p>trilingua · built by <a href="https://x.com/AladeWealth_" target="_blank" rel="noopener">@aladewealth_</a> · arbiter hacks v1 · 2026</p>
+        </footer>
+      </main>
+    </div>
+    <script src="hark.js"></script>
+  </body>
+</html>
